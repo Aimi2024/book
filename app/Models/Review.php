@@ -14,4 +14,14 @@ class Review extends Model
         return $this->belongsTo(Book::class);
     }
     use HasFactory;
+
+    protected static function booted()
+    {
+        static::updated(function (Review $review){
+            cache()->forget('book:' . md5($review->book_id));
+        });
+         static::deleted(function (Review $review){
+            cache()->forget('book:' . md5($review->book_id));
+        });
+    }
 }

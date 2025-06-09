@@ -8,6 +8,10 @@ use App\Http\Controllers\BookController;
 //     return view('welcome');
 // });
 
+route::get('/', function (){
+       return redirect()->route('books.index');
+});
+
 Route::resource('books',BookController::class);
 
 // route::fallback(function () {

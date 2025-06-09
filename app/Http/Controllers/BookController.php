@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Book;
+use Illuminate\Support\Facades\Cache;
 class BookController extends Controller
 {
     /**
@@ -32,10 +33,23 @@ class BookController extends Controller
         'popular_last_6months' => $books->popularLast6Months(),
         'highest_rated_last_month' => $books->highestRatedLastMonth(),
         'highest_rated_last_6months' => $books->highestRated6LastMonth(),
-        default => $books->latest()->withCount('reviews')->withAvg('reviews', 'rating'),
+        default => $books->latest()->withReviewsCount()->withAvgRating(),
     };
-       $books = $books->paginate(5);
+    //    $books = $books->paginate(5);
 
+      $page = request('page', 1);
+$cacheKey = "books:$filter:$title:page:$page";
+
+// Now safely cache
+$books = cache()->remember($cacheKey, 3600, function () use ($books) {
+    // dd('not from cache!'); // Shows only once if caching works
+    return $books->paginate(5);
+});
+
+        // dd($books);
+
+        // Return the view with the books data
+        // dd($books);
        return view('books.index', ['books'=>$books]);    
     }
     
@@ -59,16 +73,25 @@ class BookController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Book $book)
+    public function show($id)
     {
-       $book->load([
-        'reviews' => fn($query) => $query->latest()
-    ])->loadCount('reviews')->loadAvg('reviews', 'rating');
+        $cacheKey ='book:'. md5($id);
+      $book = cache()->remember($cacheKey, 3600, function () use ($id) {
+        return Book::with([
+                'reviews' => fn($query) => $query->latest()
+            ])
+            ->withAvgRating()
+            ->withReviewsCount()->findOrFail($id);
+    });
+
+    //    $book->load([
+    //     'reviews' => fn($query) => $query->latest()
+    // ])->loadCount('reviews')->loadAvg('reviews', 'rating');
 
         // Return the view with the book data
         // dd($book);
 
-    return view('books.show', ['book' => $book]);
+    return view('books.show',['book' => $book]);
     }
 
     /**

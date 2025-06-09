@@ -38,16 +38,26 @@ class Book extends Model
         //     return $query->withAvg('rating', 'reviews');
         // }
       
+public function scopeWithReviewsCount(Builder $query,$from = null, $to = null): Builder|QueryBuilder
+        {
+          return $query->withCount(['reviews' => fn(Builder $q) => $this->DateRangeFilter($q, $from, $to)]);
+        }
+
+
+public function scopeWithAvgRating(Builder $query,$from = null, $to = null): Builder|QueryBuilder
+        {
+          return $query->withAvg(['reviews'=>fn(Builder $q)=>$this->DateRangeFilter($q, $from, $to)], 'rating');
+        }
 
 
 
         public function scopePopular(Builder $query, $from = null, $to = null): Builder|QueryBuilder {
-            return $query->withCount(['reviews'=>fn(Builder $q)=>$this->DateRangeFilter($q, $from, $to)])
+            return $query->withReviewsCount()
 ->orderBy('reviews_count', 'desc');
         }
 
       public function scopeHighestRated(Builder $query,  $from = null, $to = null): Builder|QueryBuilder {
-    return $query->withAvg(['reviews'=>fn(Builder $q)=>$this->DateRangeFilter($q, $from, $to)], 'rating')->orderByDesc('reviews_avg_rating');
+    return $query->WithAvgRating()->orderByDesc('reviews_avg_rating');
 }
 public function scopeMinReviews(Builder $query, int $min): Builder
 {
@@ -90,4 +100,13 @@ public function scopeMinReviews(Builder $query, int $min): Builder
 
         }
 
-}
+         protected static function booted()
+    {
+        static::updated(function (Book $book){
+            cache()->forget('book:' . md5($book->id));
+        });
+         static::deleted(function (Book $book){
+            cache()->forget('book:' . md5($book->id));
+        });
+    }
+} 
